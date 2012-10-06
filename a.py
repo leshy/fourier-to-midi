@@ -7,29 +7,36 @@
 ##
 ## To test it out, run it and shout at your microphone:
 
-import alsaaudio, time, audioop, scipy, visual
+import alsaaudio, time, audioop, scipy, visual, math
 import numpy as np
 
+rate = 8000
 slen = 160
 
-
-freqs = np.fft.fftfreq(160,0.000125)
+freqs = np.fft.fftfreq(slen,1.0 / rate)
 freqs = freqs[:len(freqs) / 2]
 
+
+def miditof(x):
+    return (440 / 32) * (2 ^ ((x - 9) / 12));
+
+def ftomidi(f):
+    return int((math.log(f / (440 / 32),2) * 12) + 9)
 
 class Visualiser:
     def __init__(self):
         self.step = 1
         self.maxlen = (slen / 2) / self.step
         self.g = visual.display(width=600, height=200,center=(slen/4,30,0))
-        #        self.curve = visual.curve( x=arange(slen / 2), color=color.red, display=self.g, radius=0.1)
         self.curves = []
 
     def display(self,data):
 
         dominant = reduce(lambda y,x: x if x[1] > y[1] else y, zip(range(len(data)), data), [0,0])
         if (dominant[1] > 10):
-            print str(freqs[dominant[0]]) + " Hz"
+            freq = freqs[dominant[0]]
+            note = ftomidi(freq)
+            print freq,note
             dominant = dominant[0]
         else:
             dominant = False
@@ -65,21 +72,18 @@ class Visualiser:
 
 v = Visualiser()
 
-rate = 8000
-samplesize = 160
-
 out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK)
 out.setchannels(1)
-out.setrate(8000)
+out.setrate(rate)
 out.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-out.setperiodsize(samplesize)
+out.setperiodsize(slen)
 
 #inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE,alsaaudio.PCM_NONBLOCK)
 inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE)
 inp.setchannels(1)
-inp.setrate(8000)
+inp.setrate(rate)
 inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-inp.setperiodsize(samplesize)
+inp.setperiodsize(slen)
 
 def parse(data):
     l = len(data)
