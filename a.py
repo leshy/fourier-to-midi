@@ -12,6 +12,11 @@ import numpy as np
 
 slen = 160
 
+
+freqs = np.fft.fftfreq(160,0.000125)
+freqs = freqs[:len(freqs) / 2]
+
+
 class Visualiser:
     def __init__(self):
         self.step = 1
@@ -22,13 +27,12 @@ class Visualiser:
 
     def display(self,data):
 
-        
-        dominant = reduce ( lambda y, x: x if x[1] > y[1] else y  ,zip(range(len(data)),data),[0,0])
-        if(dominant[1] < 7):
-           dominant = False
+        dominant = reduce(lambda y,x: x if x[1] > y[1] else y, zip(range(len(data)), data), [0,0])
+        if (dominant[1] > 10):
+            print str(freqs[dominant[0]]) + " Hz"
+            dominant = dominant[0]
         else:
-           dominant = dominant[0]
-           print dominant
+            dominant = False
 
         if (len(self.curves) > self.maxlen):
             todel = self.curves.pop()
@@ -61,44 +65,42 @@ class Visualiser:
 
 v = Visualiser()
 
-# Open the device in nonblocking capture mode. The last argument could
-# just as well have been zero for blocking mode. Then we could have
-# left out the sleep call in the bottom of the loop
-inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE,alsaaudio.PCM_NONBLOCK)
+rate = 8000
+samplesize = 160
 
-# Set attributes: Mono, 8000 Hz, 16 bit little endian samples
+out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK)
+out.setchannels(1)
+out.setrate(8000)
+out.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+out.setperiodsize(samplesize)
+
+#inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE,alsaaudio.PCM_NONBLOCK)
+inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE)
 inp.setchannels(1)
 inp.setrate(8000)
 inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+inp.setperiodsize(samplesize)
 
-# The period size controls the internal number of frames per period.
-# The significance of this parameter is documented in the ALSA api.
-# For our purposes, it is suficcient to know that reads from the device
-# will return this many frames. Each frame being 2 bytes long.
-# This means that the reads below will return either 320 bytes of data
-# or 0 bytes of data. The latter is possible because we are in nonblocking
-# mode.
-inp.setperiodsize(160)
+def parse(data):
+    l = len(data)
+    samples = scipy.zeros(l / 2)
+    fft = scipy.zeros(l / 2)
+    for i in range(0, l / 2):
+        samples[i]=audioop.getsample(data, 2, i)
+
+    fft = scipy.fft(samples)
+    fft = fft[:len(fft) / 2]
+    fft = abs(fft)
+    fft *= .00005
+    v.display(fft)
+
+
+delay = []
+delaytime = 50
 
 while True:
     # Read data from device
     l,data = inp.read()
     if l > 0:
-        #print l, len(data)
-        # Return the maximum of the absolute value of all samples in a fragment.
-        #print audioop.max(data,2)
-
-        samples = scipy.zeros(slen)
-        fft = scipy.zeros(slen)
-
-        for i in range(0, slen):
-            samples[i]=audioop.getsample(data, 2, i)
-
-        fft=np.fft.ifftshift(scipy.fft(samples))
-        fft = fft[160/2:]
-        fft = np.abs(fft)
-        fft *= 0.00005
-        #fft *= 30.0/fft.max()
-        #print fft
-        v.display(fft)
+        parse(data)
     time.sleep(.01)
