@@ -9,6 +9,9 @@
 
 import alsaaudio, time, audioop, scipy, visual, math
 import numpy as np
+import alsaseq
+
+alsaseq.client( 'test', 1, 2, False )
 
 rate = 8000
 slen = 160
@@ -16,12 +19,14 @@ slen = 160
 freqs = np.fft.fftfreq(slen,1.0 / rate)
 freqs = freqs[:len(freqs) / 2]
 
-
 def miditof(x):
     return (440 / 32) * (2 ^ ((x - 9) / 12));
 
 def ftomidi(f):
     return int((math.log(f / (440 / 32),2) * 12) + 9)
+
+def PlayNote(num):
+    alsaseq.output( [6, 0, 0, 253, (0, 0), (129, 0), (131, 0), (0, num, 127, 0, 0)] )
 
 class Visualiser:
     def __init__(self):
@@ -31,12 +36,13 @@ class Visualiser:
         self.curves = []
 
     def display(self,data):
-
         dominant = reduce(lambda y,x: x if x[1] > y[1] else y, zip(range(len(data)), data), [0,0])
-        if (dominant[1] > 10):
+        if (dominant[1] > 10 and dominant[0] != 0.0):
             freq = freqs[dominant[0]]
+            print freq,
             note = ftomidi(freq)
-            print freq,note
+            print note
+            PlayNote(note)
             dominant = dominant[0]
         else:
             dominant = False
@@ -55,7 +61,6 @@ class Visualiser:
             y.append(point)
             y.append(point)
 
-
         curve = visual.curve(color=visual.color.white, display=self.g, radius=0)
 
         for point in zip(range(len(data)),data):
@@ -69,16 +74,15 @@ class Visualiser:
             curve.append(pos=(point[0],point[1],0), color=(r,g,b))
         self.curves.insert(0,curve)
 
-
 v = Visualiser()
 
-out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK)
-out.setchannels(1)
-out.setrate(rate)
-out.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-out.setperiodsize(slen)
-
+#out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK)
+#out.setchannels(1)
+#out.setrate(rate)
+#out.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+#out.setperiodsize(slen)
 #inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE,alsaaudio.PCM_NONBLOCK)
+
 inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE)
 inp.setchannels(1)
 inp.setrate(rate)
@@ -97,7 +101,6 @@ def parse(data):
     fft = abs(fft)
     fft *= .00005
     v.display(fft)
-
 
 delay = []
 delaytime = 50
