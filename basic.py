@@ -94,6 +94,8 @@ class Visualiser(Node):
         self.maxlen = (slen / 2) / self.step
         self.g = visual.display(width=600, height=200,center=(slen/4,30,0))
         self.curves = []
+        self.label = False
+        self.lastdominant = 0
 
     def input(self,data):
         fft = data['fft']
@@ -120,16 +122,30 @@ class Visualiser(Node):
         else:
             dominant = False
 
+
+        if (self.lastdominant != dominant and self.label):
+            self.label.visible = False
+            del self.label
+            self.label = False
+
         for point in zip(range(len(fft)),fft):
             if dominant and (point[0] + 2) > dominant and (point[0] - 2) < dominant:
                 r = 1
                 g = 0
                 b = 0
+
+                if (self.lastdominant != dominant and dominant == point[0]):
+                    self.label = visual.label(pos=(point[0],10,0),
+                                       text=str(data['note']), xoffset=20,
+                                       yoffset=12,
+                                       height=10, border=6,
+                                       font='sans')
             else:
                 r = g = b = point[1] / 3
 
             curve.append(pos=(point[0],point[1],0), color=(r,g,b))
-
+        self.lastdominant = dominant
+            
         self.curves.insert(0,curve)
 
 
@@ -138,7 +154,7 @@ class NoteRecogniser(Node):
         self.freqs = numpy.fft.fftfreq(slen,1.0 / rate)
         self.freqs = self.freqs[:len(self.freqs) / 2]
         Node.__init__(self)
-        
+
     def input(self,data):
         fft = data['fft']
         dominant = reduce(lambda y,x: x if x[1] > y[1] else y, zip(range(len(fft)), fft), [0,0])
@@ -182,9 +198,6 @@ class Recorder(Node):
             if l > 0:
                 self.output({ 'recording': data })
             time.sleep(.01)
-
-
-
 
 
 recorder = Recorder()
