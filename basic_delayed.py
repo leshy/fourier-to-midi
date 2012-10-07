@@ -1,11 +1,4 @@
 #!/usr/bin/python
-## This is an example of a simple sound capture script.
-##
-## The script opens an ALSA pcm for sound capture. Set
-## various attributes of the capture, and reads in a loop,
-## Then prints the volume.
-##
-## To test it out, run it and shout at your microphone:
 
 import alsaaudio, time, audioop, scipy, visual, math
 import numpy as np
