@@ -192,8 +192,26 @@ class Recording():
         self.lastnote = None
 
     def tick(self,note,velocity=127):
+
+        def noteoff():
+            if (self.lastnote):
+                self.noteoff(self.lastnote)
+                self.lastnote = None
+
         if (note):
-            self.noteon(note,velocity)
+            if note != self.lastnote:
+                if not self.lastnote:
+                    self.noteon(note,velocity)
+                    self.lastnote = note
+                else:
+                    if abs(note - self.lastnote) > 2:
+                        noteoff()
+                        self.noteon(note,velocity)
+
+                        self.lastnote = note
+
+        else:
+            noteoff()
 
     def empty(self):
         return not (len(self.memory) > 0)
