@@ -1,18 +1,17 @@
 #!/usr/bin/python
 
 import time
-
-import alsaaudio # input
-import audioop, scipy, numpy, math # parsing
+import scipy, numpy, math # parsing
 
 import visual # visualisation
 
 import alsaseq, alsamidi # midi output
 
-alsaseq.client( 'test', 1, 2, False )
+alsaseq.client( 'Note Recogniser', 0, 1, False )
 
 rate = 8000
 slen = 160
+
 
 def miditof(x):
     return (440 / 32) * (2 ^ ((x - 9) / 12));
@@ -163,12 +162,7 @@ class NoteRecogniser(Node):
 
 class Fft(Node):
     def input(self,data):
-        recording = data['recording']
-        l = len(recording)
-        samples = scipy.zeros(l / 2)
-        fft = scipy.zeros(l / 2)
-        for i in range(0, l / 2):
-            samples[i]=audioop.getsample(recording, 2, i)
+        samples = data['recording']
 
         fft = scipy.fft(samples)
         fft = fft[:len(fft) / 2]
@@ -177,9 +171,11 @@ class Fft(Node):
         data['fft'] = fft
         self.output(data)
 
-class Recorder(Node):
+class AlsaRecorder(Node):
 
     def start(self):
+        import alsaaudio, audioop
+
         inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE)
         inp.setchannels(1)
         inp.setrate(rate)
@@ -189,11 +185,60 @@ class Recorder(Node):
         while True:
             l,data = inp.read()
             if l > 0:
-                self.output({ 'recording': data })
+                ln = len(data)
+                samples = scipy.zeros(ln / 2)
+                fft = scipy.zeros(ln / 2)
+                for i in range(0, ln / 2):
+                    samples[i]=audioop.getsample(data, 2, i)
+
+                self.output({ 'recording': samples, 'rate': rate, 'slen': slen })
             time.sleep(.01)
 
 
-recorder = Recorder()
+class JackRecorder(Node):
+    def start(self):
+        import jack
+
+        jack.attach("NoteRecogniser Recorder")
+        jack.register_port("in_1", jack.IsInput)
+        jack.activate()
+        try:
+            jack.connect("system:capture_1", "NoteRecogniser Recorder:in_1")
+            jack.connect("system:capture_2", "NoteRecogniser Recorder:in_1")
+        except err:
+            print ("Unable to connect to system:capture")
+
+        buffer_size = jack.get_buffer_size()
+        sample_rate = float(jack.get_sample_rate())
+
+        print "Buffer Size:", buffer_size, "Sample Rate:", sample_rate
+
+        output = scipy.zeros((1,buffer_size), 'f')
+        while True:
+            try:
+                input = scipy.zeros((1,buffer_size), 'f')
+                jack.process(output, input)
+                #print  len(input)
+                fft = numpy.fft.rfft(input[0])
+                fft = map(lambda c : math.sqrt(c.real*c.real + c.imag*c.imag), fft)
+                #print(len(fft))
+                dominant = reduce(lambda y,x: x if x[1] > y[1] else y, zip(range(len(fft)), fft), [0,0])
+                print dominant
+                
+            except jack.InputSyncError:
+				print "Input Sync Error"
+				pass
+
+            except jack.OutputSyncError:
+				print "Output Sync Error"
+				pass
+
+
+
+
+
+
+recorder = JackRecorder()
 fft = Fft()
 vis = Visualiser()
 note = NoteRecogniser()
