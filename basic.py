@@ -238,7 +238,7 @@ class JackRecorder(Node):
 
 
 
-recorder = JackRecorder()
+recorder = AlsaRecorder()
 fft = Fft()
 vis = Visualiser()
 note = NoteRecogniser()
