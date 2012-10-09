@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 import time
 import alsaaudio # input
 import audioop, scipy, numpy, math # parsing
@@ -210,8 +209,8 @@ class Recording():
 
                         self.lastnote = note
 
-        else:
-            noteoff()
+    def tick_old(self,note,velocity=127):
+        self.noteon(note,velocity)
 
     def empty(self):
         return not (len(self.memory) > 0)
@@ -270,7 +269,6 @@ class NoteRecorder(Node):
             self.startListening()
         self.recording.play(continueListening)
 
-
     def listening(self,data):
         if data.has_key('note'):
             self.lastnote = time.time()
@@ -284,15 +282,18 @@ class NoteRecorder(Node):
 
 
 
+# instantiate stuff
 recorder = Recorder()
 fft = Fft()
 vis = Visualiser()
 note_recogniser = NoteRecogniser()
 note_recorder = NoteRecorder()
 
+# connect stuff
 recorder.addchild(fft)
 fft.addchild(note_recogniser)
 note_recogniser.addchild(vis)
 note_recogniser.addchild(note_recorder)
 
+# start stuff
 recorder.start()
