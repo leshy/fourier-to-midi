@@ -53,25 +53,6 @@ class Observable(object):
 
 
 
-class Recorder:
-    def __init__(self):
-        self.data = {}
-
-    def start(self):
-        self.start = time.time()
-
-    def stop(self):
-        self.stop = time.time()
-
-    def push(self,note):
-        self.start - time.time()
-
-
-r = Recorder()
-
-
-
-
 class Node(Observable):
     def __init__(self):
         self.children = []
@@ -84,6 +65,19 @@ class Node(Observable):
 
     def input(self,data):
         self.output(data)
+
+
+
+
+class NoteRecorder(Node):
+    def __init__(self):
+        Node.__init__(self)
+        self.data = {}
+
+    def input(self,data):
+        print('in')
+        if data.has_key('note'):
+            print(data['note'])
 
 
 
@@ -116,7 +110,6 @@ class Visualiser(Node):
 
         curve = visual.curve(color=visual.color.white, display=self.g, radius=0)
 
-
         if data.has_key('dominantbucket'):
             dominant = data['dominantbucket']
         else:
@@ -145,15 +138,16 @@ class Visualiser(Node):
 
             curve.append(pos=(point[0],point[1],0), color=(r,g,b))
         self.lastdominant = dominant
-            
+
         self.curves.insert(0,curve)
 
 
 class NoteRecogniser(Node):
     def __init__(self):
+        Node.__init__(self)
+
         self.freqs = numpy.fft.fftfreq(slen,1.0 / rate)
         self.freqs = self.freqs[:len(self.freqs) / 2]
-        Node.__init__(self)
 
     def input(self,data):
         fft = data['fft']
@@ -166,7 +160,6 @@ class NoteRecogniser(Node):
             data['frequency'] = frequency
             data['note'] = note
             data['dominantbucket'] = bucket
-            print(note)
 
 class Fft(Node):
     def input(self,data):
@@ -202,11 +195,14 @@ class Recorder(Node):
 
 recorder = Recorder()
 fft = Fft()
-v = Visualiser()
+vis = Visualiser()
 note = NoteRecogniser()
+note_recorder = NoteRecorder()
 
 recorder.addchild(fft)
 fft.addchild(note)
-fft.addchild(v)
+fft.addchild(vis)
+note.addchild(note_recorder)
+
 
 recorder.start()
